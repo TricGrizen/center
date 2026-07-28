@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<title>经纪中心</title>
+<style>
+/* ============ 设计令牌（司辰印，工务勿动） ============ */
+:root{
+  --bg:#000000; --panel:#0A0A0B; --panel2:#101011;
+  --line:#1B1A18; --line2:#2A2823;
+  --ink:#E9E6E0; --ink2:#A29C90; --ink3:#5C574E;
+  --bar:#2B2A26; --bar2:#3A3831;
+  --lake:#63C9B8; --lake-dim:#2C5C55; --lake-ghost:rgba(99,201,184,.12);
+  --seal:#C04A32; --seal-dim:#5C2A1F;
+  --f-song:"Songti SC","Noto Serif CJK SC","SimSun",serif;
+  --f-hei:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  --f-mono:ui-monospace,"SF Mono",SFMono-Regular,Consolas,"Cascadia Mono",monospace;
+  --hour:34px;            /* 漏刻每小时高度 */
+  --pad:14px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{background:var(--bg)}
+body{
+  background:var(--bg);color:var(--ink);font-family:var(--f-hei);
+  font-size:14px;line-height:1.55;
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+  padding-bottom:env(safe-area-inset-bottom);
+}
+::selection{background:var(--lake-dim);color:var(--ink)}
+a{color:var(--lake);text-decoration:none}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:1px solid var(--lake);outline-offset:2px;border-radius:2px}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.empty{color:var(--ink3);padding:10px 0 2px;font-size:13px}
+
+/* ============ 楣题 ============ */
+.mast{
+  display:flex;align-items:baseline;gap:12px;
+  padding:calc(14px + env(safe-area-inset-top)) var(--pad) 12px;
+  border-bottom:1px solid var(--line);
+  position:sticky;top:0;background:linear-gradient(var(--bg) 82%,rgba(0,0,0,.92));z-index:9;
+  backdrop-filter:blur(6px);
+}
+.mast h1{
+  font-family:var(--f-song);font-weight:600;font-size:19px;letter-spacing:.42em;
+  margin-right:-.42em; /* 抵消尾字间距 */
+}
+.mast .date{color:var(--ink2);font-size:12.5px;letter-spacing:.04em}
+.mast .date b{color:var(--ink);font-weight:500}
+.dot{
+  margin-left:auto;width:22px;height:22px;border:0;background:none;cursor:default;
+  display:grid;place-items:center;
+}
+.dot::after{
+  content:"";width:7px;height:7px;border-radius:50%;
+  background:var(--ink3);transition:background .3s;
+}
+.dot.live::after{background:var(--lake);animation:pulse 2.4s ease-in-out infinite}
+.dot.stale::after{background:var(--lake-dim)}
+.dot.cut::after{background:var(--seal)}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 var(--lake-ghost)}50%{box-shadow:0 0 0 6px var(--lake-ghost)}}
+
+/* ============ 布局 ============ */
+.wrap{max-width:1060px;margin:0 auto;padding:0 var(--pad) 48px}
+@media(min-width:880px){
+  .wrap{display:grid;grid-template-columns:1fr 328px;gap:0 28px;align-items:start}
+  .col-side{position:sticky;top:64px}
+}
+section{border-bottom:1px solid var(--line);padding:16px 0 18px}
+.col-side section{border-bottom:0;padding-top:16px}
+h2.eyebrow{
+  font-family:var(--f-song);font-size:13px;font-weight:600;color:var(--ink2);
+  letter-spacing:.34em;margin-bottom:10px;display:flex;align-items:baseline;gap:10px;
+}
+h2.eyebrow .sub{font-family:var(--f-hei);letter-spacing:.02em;font-weight:400;font-size:11.5px;color:var(--ink3)}
+h2.eyebrow .aux{margin-left:auto;font-family:var(--f-mono);letter-spacing:0;font-size:12px;color:var(--ink2);font-weight:400}
+
+/* ============ 此刻 ============ */
+.now-row{display:flex;align-items:baseline;gap:10px;padding:7px 0}
+.now-row+.now-row{border-top:1px solid var(--line)}
+.now-app{font-size:16.5px;font-weight:550}
+.now-dev{font-size:11px;color:var(--ink3);border:1px solid var(--line2);padding:0 5px;border-radius:3px;line-height:1.7}
+.now-since{margin-left:auto;color:var(--lake);font-size:13px}
+.now-live::before{
+  content:"";display:inline-block;width:6px;height:6px;border-radius:50%;
+  background:var(--lake);margin-right:8px;vertical-align:2px;
+  animation:pulse 2.4s ease-in-out infinite;
+}
+
+/* ============ 今日账 ============ */
+.bar-row{display:grid;grid-template-columns:5.5em 1fr auto;gap:10px;align-items:center;padding:4.5px 0}
+.bar-label{font-size:13px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar-track{height:9px;background:var(--panel2);border-radius:2px;position:relative;overflow:hidden}
+.bar-fill{
+  position:absolute;inset:0 auto 0 0;width:calc(var(--w,0)*1%);
+  background:var(--bar2);border-radius:0 2px 2px 0;min-width:2px;
+}
+.bar-row.hot .bar-fill{background:var(--lake-dim)}
+.bar-row.hot .bar-label{color:var(--lake)}
+.bar-val{font-size:12px;color:var(--ink2);min-width:4.2em;text-align:right}
+.today-meta{display:flex;gap:18px;color:var(--ink3);font-size:12px;margin-top:8px}
+.today-meta b{color:var(--ink2);font-weight:500}
+
+/* ============ 漏刻（签名件） ============ */
+.louke{position:relative;margin-top:6px}
+.rail{position:relative;height:calc(var(--hour)*24);}
+.hr-row{
+  position:absolute;left:0;right:0;height:var(--hour);
+  border-top:1px solid var(--line);
+  display:flex;align-items:flex-start;gap:8px;pointer-events:none;
+}
+.hr-row .h{font-family:var(--f-mono);font-size:10.5px;color:var(--ink3);width:2em;padding-top:2px}
+.hr-row .shichen{
+  font-family:var(--f-song);font-size:15px;color:var(--ink2);letter-spacing:0;
+  width:1.2em;padding-top:1px;
+}
+.hr-row.geng .h{color:var(--ink2)}
+.seg-layer,.beacon-layer{position:absolute;top:0;bottom:0;pointer-events:none}
+.seg-layer{left:64px;right:34px}
+.beacon-layer{right:2px;width:26px}
+.seg{
+  position:absolute;left:0;right:0;
+  top:calc(var(--p,0)*1%);height:max(calc(var(--hp,0)*1%),3px);
+  background:var(--bar2);border-radius:2px;border-left:2px solid var(--line2);
+  pointer-events:auto;
+}
+.seg .seg-tag{
+  position:absolute;left:8px;top:50%;transform:translateY(-50%);
+  font-size:11px;color:var(--ink2);white-space:nowrap;overflow:hidden;max-width:92%;
+  text-overflow:ellipsis;
+}
+.seg.live{background:var(--lake-dim);border-left-color:var(--lake)}
+.seg.live .seg-tag{color:var(--lake)}
+.seg.suspect{opacity:.55;border-left-style:dashed}
+.seg.pc{filter:saturate(.4)}  /* v2 多轨预留 */
+.beacon{
+  position:absolute;top:calc(var(--p,0)*1%);right:0;transform:translateY(-50%);
+  font-size:11px;color:var(--ink3);pointer-events:auto;
+  font-family:var(--f-song);
+}
+.beacon.charge{color:var(--lake)}
+.beacon.sleep{color:var(--ink2)}
+.beacon.alarm{color:var(--seal)}
+.arrow-now{
+  position:absolute;left:34px;right:0;top:calc(var(--p,0)*1%);
+  border-top:1px solid var(--seal);pointer-events:none;
+}
+.arrow-now::before{
+  content:"漏箭";position:absolute;left:-34px;top:-8px;
+  font-family:var(--f-song);font-size:10px;color:var(--seal);letter-spacing:.1em;
+}
+.seg-tip{
+  position:fixed;z-index:30;background:var(--panel2);border:1px solid var(--line2);
+  padding:6px 9px;font-size:12px;border-radius:4px;color:var(--ink);
+  max-width:78vw;pointer-events:none;display:none;
+}
+.seg-tip .mono{color:var(--ink2)}
+
+/* ============ 流水 ============ */
+#feedList{list-style:none}
+#feedList li{
+  display:flex;gap:12px;align-items:baseline;padding:5.5px 0;
+  border-top:1px solid var(--line);font-size:13px;
+}
+#feedList li:first-child{border-top:0}
+.f-t{color:var(--ink3);font-size:12px;flex:0 0 4.6em}
+.f-app{font-weight:520}
+.f-ev{color:var(--ink3);font-size:12px}
+.f-ev.open{color:var(--lake)}
+.f-ev.beacon{color:var(--ink2);font-family:var(--f-song)}
+.f-dev{margin-left:auto;color:var(--ink3);font-size:11px}
+
+/* ============ 折叠区（PC 日报 / 设置） ============ */
+details{border-bottom:1px solid var(--line)}
+details summary{
+  cursor:pointer;list-style:none;padding:14px 0;
+  font-family:var(--f-song);font-size:13px;color:var(--ink2);letter-spacing:.34em;
+  display:flex;align-items:baseline;
+}
+details summary::-webkit-details-marker{display:none}
+details summary::after{content:"▸";margin-left:auto;color:var(--ink3);transition:transform .2s}
+details[open] summary::after{transform:rotate(90deg)}
+.d-body{padding:2px 0 18px;color:var(--ink2);font-size:13px}
+.d-body .hint{color:var(--ink3);font-size:12px;margin-top:8px;line-height:1.7}
+#pcReport{
+  margin-top:10px;padding:12px;background:var(--panel);border:1px solid var(--line);
+  border-radius:4px;overflow-x:auto;font-size:12.5px;line-height:1.65;
+}
+#pcReport h1,#pcReport h2{font-size:13.5px;font-family:var(--f-song);letter-spacing:.12em;margin:10px 0 6px;color:var(--ink)}
+#pcReport table{border-collapse:collapse;margin:6px 0;white-space:nowrap}
+#pcReport th,#pcReport td{border:1px solid var(--line2);padding:3px 8px;font-size:12px}
+#pcReport th{color:var(--ink2);font-weight:500}
+#pcReport code,#pcReport pre{font-family:var(--f-mono);font-size:11.5px}
+#pcReport pre{padding:8px;background:var(--bg);border:1px solid var(--line);border-radius:3px;overflow-x:auto}
+#pcReport blockquote{color:var(--ink3);border-left:2px solid var(--line2);padding-left:10px;margin:6px 0}
+
+/* 设置 */
+.set-row{display:flex;gap:10px;align-items:center;margin:10px 0}
+.set-row label{flex:0 0 5.5em;color:var(--ink2);font-size:13px}
+.set-row input[type=password],.set-row input[type=text]{
+  flex:1;background:var(--panel2);border:1px solid var(--line2);border-radius:4px;
+  padding:7px 10px;font-family:var(--f-mono);font-size:12.5px;color:var(--ink);min-width:0;
+}
+.set-row select{background:var(--panel2);border:1px solid var(--line2);border-radius:4px;padding:6px 8px;color:var(--ink)}
+.btn{
+  background:none;border:1px solid var(--line2);border-radius:4px;color:var(--ink2);
+  padding:6px 14px;cursor:pointer;font-size:13px;letter-spacing:.06em;
+}
+.btn:hover{border-color:var(--lake);color:var(--lake)}
+.btn.primary{border-color:var(--lake-dim);color:var(--lake)}
+
+/* ============ 脚注·印 ============ */
+.foot{
+  display:flex;align-items:center;gap:14px;padding:22px 0 8px;color:var(--ink3);font-size:11.5px;
+}
+.seal-stamp{
+  width:34px;height:34px;border:1.5px solid var(--seal);border-radius:3px;
+  color:var(--seal);font-family:var(--f-song);font-size:12px;line-height:1.05;
+  display:grid;place-items:center;letter-spacing:.08em;
+  writing-mode:vertical-rl;padding:2px;opacity:.85;flex:none;
+  transform:rotate(-2deg);
+}
+#quality{line-height:1.7}
+@media(prefers-reduced-motion:reduce){
+  .dot.live::after,.now-live::before{animation:none}
+  details summary::after{transition:none}
+}
+</style>
+</head>
+<body data-palette="#63C9B8,#C04A32">
+
+<header class="mast">
+  <h1>經紀中心</h1>
+  <div class="date"><b id="mastDay">——</b><span id="mastShichen"></span></div>
+  <button class="dot" id="dotLive" aria-label="数据新鲜度" title="数据新鲜度"></button>
+</header>
+
+<div class="wrap">
+<div class="col-main">
+
+  <section id="secNow" aria-live="polite">
+    <h2 class="eyebrow">此　刻<span class="aux" id="nowAge"></span></h2>
+    <div id="nowList"></div>
+    <p class="empty" id="nowEmpty">手机静默。</p>
+  </section>
+
+  <section id="secToday">
+    <h2 class="eyebrow">今日账<span class="aux mono" id="todaySum">0m</span></h2>
+    <div id="bars"></div>
+    <p class="empty" id="barsEmpty">今日尚无进账。快捷指令包未通时，先按手册搭「记账」。</p>
+    <div class="today-meta">
+      <span>开启 <b id="todayCount" class="mono">0</b> 起</span>
+      <span>信标 <b id="todayBeacons" class="mono">0</b> 记</span>
+      <span id="todayDevices"></span>
+    </div>
+  </section>
+
+  <section id="secFeed">
+    <h2 class="eyebrow">流　水<span class="sub">最近 30 条</span></h2>
+    <ol id="feedList" aria-live="polite"></ol>
+    <p class="empty" id="feedEmpty">账册未开。贴入 PAT 后，账册即活（见「设置」）。</p>
+  </section>
+
+  <details id="secPc">
+    <summary>PC 日报</summary>
+    <div class="d-body">
+      <div id="pcMeta">夜航班尚未上云。每日 16:15（机器时间）后自动送达前一北京日。</div>
+      <article id="pcReport" hidden></article>
+    </div>
+  </details>
+
+  <details id="secSet">
+    <summary>设　置</summary>
+    <div class="d-body">
+      <div class="set-row">
+        <label for="patInput">PAT</label>
+        <input type="password" id="patInput" autocomplete="off" placeholder="github_pat_…（仅授 agent-center 仓）">
+        <button class="btn primary" id="patSave">存入本机</button>
+      </div>
+      <div class="set-row">
+        <label for="pollSel">轮询</label>
+        <select id="pollSel">
+          <option value="30">30 秒</option>
+          <option value="60">60 秒</option>
+          <option value="120">2 分钟</option>
+        </select>
+        <button class="btn" id="cacheClear">清缓存重拉</button>
+      </div>
+      <p class="hint">PAT 只存本机浏览器（localStorage），不出此机。铸法见《快捷指令手册》第零步：Fine-grained token，仅授 <span class="mono">agent-center</span> 仓 Contents 读写。手机与 PC 浏览器各贴一次。</p>
+    </div>
+  </details>
+
+  <footer class="foot">
+    <div class="seal-stamp" aria-hidden="true">更漏</div>
+    <div>
+      <div id="quality">数据质量：—</div>
+      <div>经纪中心 · 平台 v1 · 漏刻纪月　西子湖计划</div>
+    </div>
+  </footer>
+
+</div>
+<div class="col-side">
+
+  <section id="secLouke">
+    <h2 class="eyebrow">漏　刻<span class="sub">北京 04:00 起 · 十二时辰</span></h2>
+    <div class="louke">
+      <div class="rail" id="rail" aria-label="今日二十四小时时间轴">
+        <div class="seg-layer" id="segLayer"></div>
+        <div class="beacon-layer" id="beaconLayer"></div>
+        <div class="arrow-now" id="arrowNow" hidden></div>
+      </div>
+    </div>
+  </section>
+
+</div>
+</div>
+
+<div class="seg-tip" id="segTip" role="tooltip"></div>
+
+<template id="tpl-now">
+  <div class="now-row">
+    <span class="now-app now-live"></span>
+    <span class="now-dev"></span>
+    <span class="now-since mono"></span>
+  </div>
+</template>
+
+<template id="tpl-bar">
+  <div class="bar-row">
+    <span class="bar-label"></span>
+    <span class="bar-track"><span class="bar-fill"></span></span>
+    <span class="bar-val mono"></span>
+  </div>
+</template>
+
+<template id="tpl-feed">
+  <li>
+    <span class="f-t mono"></span>
+    <span class="f-app"></span>
+    <span class="f-ev"></span>
+    <span class="f-dev"></span>
+  </li>
+</template>
+
+<template id="tpl-seg">
+  <div class="seg"><span class="seg-tag"></span></div>
+</template>
+
+<template id="tpl-beacon">
+  <span class="beacon"></span>
+</template>
+
+<noscript><p class="empty" style="padding:14px">此账册须 JavaScript 方能翻开。</p></noscript>
+
+<script>
+/* 漏刻静态刻度（纯呈现，司辰件）：04 时起排 24 行，逢时辰起点落宋体时辰字，更点行加亮 */
+(function(){
+  const SC = {4:"寅",6:"卯",8:"辰",10:"巳",12:"午",14:"未",16:"申",18:"酉",20:"戌",22:"亥",0:"子",2:"丑"};
+  const rail = document.getElementById("rail");
+  for (let i = 0; i < 24; i++){
+    const h = (4 + i) % 24;
+    const row = document.createElement("div");
+    row.className = "hr-row" + (h % 2 === 0 && (h >= 20 || h <= 4) ? " geng" : "");
+    row.style.top = `calc(var(--hour) * ${i})`;
+    row.innerHTML = `<span class="h">${String(h).padStart(2,"0")}</span><span class="shichen">${SC[h] ?? ""}</span>`;
+    rail.appendChild(row);
+  }
+})();
+</script>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
